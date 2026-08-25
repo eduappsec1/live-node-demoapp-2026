@@ -9,3 +9,11 @@ paths = [
   '''README\.md''',
   '''docs/.*\.md'''
 ]
+
+title = "FIER Demo Gitleaks Rules"
+
+[[rules]]
+id = "demo-secret"
+description = "Detecta segredo fake do laboratório"
+regex = '''DEMO_SECRET_[A-Z0-9_]{8,}'''
+tags = ["demo", "fier"]
