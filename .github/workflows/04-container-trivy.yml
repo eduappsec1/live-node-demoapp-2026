@@ -1,0 +1,40 @@
+name: container-trivy
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  trivy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Build image
+        run: |
+          docker build \
+            -t fier-demo:${{ github.sha }} \
+            .
+
+      - name: Run Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: fier-demo:${{ github.sha }}
+
+          # Neste lab queremos vulnerabilidades/CVEs.
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          format: table
+
+          # Para o showroom, reduz ruído de CVEs
+          # que ainda não possuem correção.
+          ignore-unfixed: true
+
+          # Cria o security gate.
+          exit-code: '1'
