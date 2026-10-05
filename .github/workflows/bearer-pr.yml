@@ -1,0 +1,63 @@
+name: Bearer PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: bearer-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  bearer:
+    name: Bearer SAST
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do codigo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Instalar Reviewdog
+        uses: reviewdog/action-setup@v1
+        with:
+          reviewdog_version: latest
+
+      - name: Executar Bearer
+        id: scan
+        uses: bearer/bearer-action@v2
+        with:
+          scanner: sast
+          diff: true
+          format: rdjson
+          output: bearer-results.rdjson
+
+      - name: Publicar comentarios no PR
+        if: >-
+          ${{
+            !cancelled() &&
+            steps.scan.outcome != 'skipped' &&
+            github.event.pull_request.head.repo.full_name == github.repository
+          }}
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ ! -s bearer-results.rdjson ]; then
+            echo "::error::Bearer nao gerou o relatorio esperado. Consulte o log do scan."
+            exit 1
+          fi
+
+          reviewdog \
+            -f=rdjson \
+            -name="Bearer SAST" \
+            -reporter=github-pr-review \
+            -filter-mode=added \
+            -fail-level=none \
+            -tee \
+            < bearer-results.rdjson
